@@ -1,8 +1,6 @@
 # podman-navigator
 **Интерактивная шпаргалка по Podman** — 25+ команд, Pods, интеграция с Kubernetes, Systemd, Rootless режим.
 
-**Интерактивная шпаргалка по Podman** — 40+ команд, Pods, интеграция с Kubernetes, Systemd, Rootless режим.
-
 [🌐 Открыть шпаргалку](https://iso-hallow.github.io/podman-navigator/)
 
 ## ✨ Особенности
