@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> Podman Navigator</title>
+    <meta name="description" content="Интерактивная шпаргалка по Podman. Rootless, Daemonless, Pods, Kubernetes манифесты и полная замена Docker.">
+    <meta name="author" content="Podman Navigator">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);
+            color: #e2e8f0;
+            line-height: 1.6;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+        .header {
+            text-align: center;
+            padding: 30px 20px;
+            background: rgba(30, 27, 75, 0.7);
+            border-radius: 20px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        /* Пурпурный градиент для Podman */
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #a78bfa, #f472b6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .header p { color: #94a3b8; }
+
+        .stats-badge {
+            display: inline-flex;
+            gap: 15px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .stat-item {
+            background: #2e1065;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: #d8b4fe;
+            border: 1px solid #4c1d95;
+        }
+
+        .badge-gold {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: #0f172a;
+            font-weight: bold;
+            border: none;
+        }
+
+        .action-btns-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 200;
+        }
+
+        .float-btn {
+            background: #2e1065;
+            border: 1px solid #4c1d95;
+            border-radius: 50px;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.3s;
+            color: #e2e8f0;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .float-btn:hover {
+            background: #4c1d95;
+            transform: scale(1.05);
+        }
+
+        /* --- СВЕТЛАЯ ТЕМА --- */
+        body.light-theme {
+            background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+            color: #0f172a;
+        }
+
+        body.light-theme .header,
+        body.light-theme .cmd-card,
+        body.light-theme .nav-tabs,
+        body.light-theme .favorites-bar,
+        body.light-theme .search-box,
+        body.light-theme .schema {
+            background: rgba(255, 255, 255, 0.9);
+            border-color: #d8b4fe;
+        }
+
+        body.light-theme .cmd-code,
+        body.light-theme .schema-diagram {
+            background: #f8fafc;
+            color: #0f172a;
+            border-left-color: #a78bfa;
+        }
+
+        body.light-theme .stat-item {
+            background: #f3e8ff;
+            color: #7e22ce;
+            border-color: #d8b4fe;
+        }
+
+        body.light-theme .search-box input { color: #0f172a; }
+        body.light-theme .cmd-desc { color: #475569; }
+        body.light-theme .float-btn {
+            background: rgba(255, 255, 255, 0.9);
+            border-color: #d8b4fe;
+            color: #0f172a;
+        }
+
+        .search-section { margin-bottom: 30px; }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            background: rgba(30, 27, 75, 0.5);
+            border-radius: 50px;
+            padding: 5px;
+            border: 1px solid #4c1d95;
+        }
+
+        .search-box input {
+            flex: 1;
+            padding: 15px 20px;
+            background: transparent;
+            border: none;
+            color: #e2e8f0;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        .search-box input::placeholder { color: #64748b; }
+
+        .search-box button {
+            padding: 10px 25px;
+            background: linear-gradient(135deg, #8b5cf6, #d946ef);
+            border: none;
+            border-radius: 40px;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        .search-box button:hover { transform: scale(1.02); }
+
+        .search-stats { margin-top: 10px; font-size: 0.85rem; color: #64748b; }
+
+        .nav-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 30px;
+            background: rgba(30, 27, 75, 0.5);
+            padding: 12px 15px;
+            border-radius: 60px;
+            justify-content: center;
+        }
+
+        .tab-btn {
+            padding: 8px 14px;
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            border-radius: 30px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .tab-btn:hover { background: #4c1d95; color: white; }
+        .tab-btn.active { background: linear-gradient(135deg, #8b5cf6, #d946ef); color: white; }
+
+        .category { display: none; animation: fadeIn 0.3s ease-out; }
+        .category.active { display: block; }
+
+        .cmd-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .cmd-card {
+            background: rgba(30, 27, 75, 0.4);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid #334155;
+            transition: all 0.3s;
+        }
+
+        .cmd-card:hover {
+            border-color: #a78bfa;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.2);
+        }
+
+        .cmd-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #334155;
+            flex-wrap: wrap;
+        }
+
+        .cmd-title .icon { font-size: 1.5rem; }
+
+        .cmd-title h3 {
+            color: #d8b4fe;
+            font-family: 'Courier New', 'Fira Code', monospace;
+            flex: 1;
+            font-size: 1rem;
+        }
+
+        .cmd-code {
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 10px;
+            font-family: 'Courier New', 'Fira Code', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre;
+            margin: 12px 0;
+            border-left: 3px solid #8b5cf6;
+        }
+
+        .cmd-code::-webkit-scrollbar { height: 6px; }
+        .cmd-code::-webkit-scrollbar-track { background: #0f172a; border-radius: 3px; }
+        .cmd-code::-webkit-scrollbar-thumb { background: #4c1d95; border-radius: 3px; }
+        .cmd-code::-webkit-scrollbar-thumb:hover { background: #8b5cf6; }
+
+        .cmd-desc {
+            color: #cbd5e1;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            display: block;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #334155;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            margin-right: 5px;
+            color: #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .badge:hover { opacity: 0.8; }
+
+        .schema {
+            background: rgba(30, 27, 75, 0.4);
+            border-radius: 20px;
+            padding: 25px;
+            margin: 20px 0;
+            border: 1px solid #334155;
+        }
+
+        .schema h3 { color: #d8b4fe; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+
+        .schema-diagram {
+            background: #0f172a;
+            border-radius: 12px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            overflow-x: auto;
+            white-space: pre;
+            line-height: 1.6;
+        }
+
+        .favorites-bar {
+            position: fixed;
+            right: 20px;
+            top: 100px;
+            background: rgba(30, 27, 75, 0.8);
+            border-radius: 12px;
+            padding: 12px;
+            width: 50px;
+            cursor: pointer;
+            transition: width 0.3s;
+            overflow: hidden;
+            z-index: 100;
+            border: 1px solid #4c1d95;
+            backdrop-filter: blur(10px);
+        }
+
+        .favorites-bar:hover { width: 280px; }
+        .favorites-bar .star-icon { text-align: center; font-size: 1.5rem; }
+        .favorites-list { display: none; margin-top: 10px; font-size: 0.75rem; }
+        .favorites-bar:hover .favorites-list { display: block; }
+
+        .favorites-list div {
+            padding: 6px 8px;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .favorites-list div:hover { background: #4c1d95; color: #e2e8f0; }
+
+        .copy-btn {
+            background: #334155;
+            border: none;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            transition: all 0.2s;
+        }
+
+        .copy-btn:hover { background: #8b5cf6; }
+
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .export-btn {
+            background: rgba(30, 27, 75, 0.6);
+            border: 1px solid #4c1d95;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .export-btn:hover { background: #8b5cf6; border-color: #8b5cf6; }
+
+        .shortcuts-hint {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            color: #94a3b8;
+            backdrop-filter: blur(5px);
+            z-index: 100;
+        }
+
+        @media (max-width: 768px) {
+            .cmd-grid { grid-template-columns: 1fr; }
+            .nav-tabs { border-radius: 20px; }
+            .favorites-bar, .shortcuts-hint { display: none; }
+        }
+
+        .highlight { background-color: #f59e0b; color: #0f172a; padding: 0 2px; border-radius: 3px; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #4c1d95; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #8b5cf6; }
+
+        footer { text-align: center; padding: 30px; color: #64748b; font-size: 0.8rem; }
+        
+        .new-badge {
+            background: #d946ef;
+            color: white;
+            font-size: 0.6rem;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 8px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 id="mainTitle"> Podman Navigator</h1>
+            <p id="mainDesc">Интерактивная шпаргалка · Rootless · Daemonless · Pods · Kube/Systemd · Идеальная замена Docker</p>
+            <div class="stats-badge" id="statsBadge"></div>
+        </div>
+
+        <div class="search-section">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="🔍 Поиск... / - фокус | Например: pod, kube, build">
+                <button id="searchBtn">Найти</button>
+            </div>
+            <div class="search-stats" id="searchStats"></div>
+        </div>
+
+        <div class="export-buttons">
+            <button class="export-btn" id="exportJsonBtn">📤 Экспорт JSON</button>
+            <button class="export-btn" id="exportMarkdownBtn">📝 Экспорт MD</button>
+            <button class="export-btn" id="clearFavoritesBtn">🗑️ Очистить избранное</button>
+        </div>
+
+        <div class="nav-tabs" id="navTabs">
+            <button class="tab-btn active" data-cat="all" id="tab-all">📌 Все</button>
+            <button class="tab-btn" data-cat="containers" id="tab-containers">📦 Контейнеры</button>
+            <button class="tab-btn" data-cat="images" id="tab-images">🖼️ Образы</button>
+            <button class="tab-btn" data-cat="pods" id="tab-pods">🧊 Pods <span class="new-badge">Киллер-фича</span></button>
+            <button class="tab-btn" data-cat="kube" id="tab-kube">☸️ Kube & Systemd</button>
+            <button class="tab-btn" data-cat="volumes" id="tab-volumes">💾 Volumes</button>
+            <button class="tab-btn" data-cat="network" id="tab-network">🌐 Сети</button>
+            <button class="tab-btn" data-cat="advanced" id="tab-advanced">🔧 Продвинутые</button>
+            <button class="tab-btn" data-cat="schemas" id="tab-schemas">📊 Схемы</button>
+        </div>
+
+        <div id="categoriesContainer"></div>
+
+        <div class="favorites-bar" id="favoritesBar">
+            <div class="star-icon">⭐</div>
+            <div class="favorites-list" id="favoritesList"></div>
+        </div>
+
+        <div class="shortcuts-hint" id="shortcutsHint">
+            ⌨️ / - поиск | F2 - тема | Esc - сброс
+        </div>
+
+        <div class="action-btns-container">
+            <div class="float-btn" id="langToggle" title="Change Language">🇷🇺 RU</div>
+            <div class="float-btn" id="themeToggle" title="Toggle Theme">🌓</div>
+        </div>
+
+        <footer id="footerText">
+            📘 Podman Navigator | Daemonless & Rootless | Pods ✅ | Kubernetes YAML ✅ | Systemd ✅
+        </footer>
+    </div>
+
+    <script>
+        const i18n = {
+            ru: {
+                mainDesc: "Интерактивная шпаргалка · Rootless · Daemonless · Pods · Kube/Systemd · Замена Docker",
+                searchPlaceholder: "🔍 Поиск... / - фокус | Например: pod, kube, build",
+                searchBtn: "Найти",
+                exportJson: "📤 Экспорт JSON",
+                exportMd: "📝 Экспорт MD",
+                clearFav: "🗑️ Очистить избранное",
+                tabAll: "📌 Все",
+                tabContainers: "📦 Контейнеры",
+                tabImages: "🖼️ Образы",
+                tabPods: "🧊 Pods",
+                tabKube: "☸️ Kube & Systemd",
+                tabVolumes: "💾 Volumes",
+                tabNetwork: "🌐 Сети",
+                tabAdvanced: "🔧 Продвинутые",
+                tabSchemas: "📊 Схемы",
+                shortcutsHint: "⌨️ / - поиск | F2 - тема | Esc - сброс",
+                footerText: "📘 Podman Navigator | Daemonless & Rootless | Pods ✅ | Kubernetes YAML ✅",
+                favTitle: "⭐ Избранное",
+                favEmpty: "Нет избранного",
+                statTotal: "📦 Всего команд:",
+                statFavs: "⭐ Избранное:",
+                statBadge: "🏆 Лучший гайд",
+                addedFav: "★ В избранном",
+                addFav: "☆ Добавить",
+                notFound: "Ничего не найдено по запросу",
+                foundItems: "🔍 Найдено:",
+                itemsQuery: "элементов",
+                totalLabel: "📚 Команд:"
+            },
+            en: {
+                mainDesc: "Interactive Cheatsheet · Rootless · Daemonless · Pods · Kube/Systemd · Docker drop-in replacement",
+                searchPlaceholder: "🔍 Search... / to focus | e.g.: pod, kube, build",
+                searchBtn: "Search",
+                exportJson: "📤 Export JSON",
+                exportMd: "📝 Export MD",
+                clearFav: "🗑️ Clear Favorites",
+                tabAll: "📌 All",
+                tabContainers: "📦 Containers",
+                tabImages: "🖼️ Images",
+                tabPods: "🧊 Pods",
+                tabKube: "☸️ Kube & Systemd",
+                tabVolumes: "💾 Volumes",
+                tabNetwork: "🌐 Networks",
+                tabAdvanced: "🔧 Advanced",
+                tabSchemas: "📊 Diagrams",
+                shortcutsHint: "⌨️ / - search | F2 - theme | Esc - reset",
+                footerText: "📘 Podman Navigator | Daemonless & Rootless | Pods ✅ | Kubernetes YAML ✅",
+                favTitle: "⭐ Favorites",
+                favEmpty: "No favorites",
+                statTotal: "📦 Total commands:",
+                statFavs: "⭐ Favorites:",
+                statBadge: "🏆 Top Guide",
+                addedFav: "★ Favorited",
+                addFav: "☆ Add to Fav",
+                notFound: "Nothing found for",
+                foundItems: "🔍 Found:",
+                itemsQuery: "items",
+                totalLabel: "📚 Total commands:"
+            }
+        };
+
+        let currentLang = localStorage.getItem("podmanLang") || "ru";
+        
+        const categoryTitles = {
+            containers: { ru: "📦 Контейнеры", en: "📦 Containers" },
+            images: { ru: "🖼️ Образы", en: "🖼️ Images" },
+            pods: { ru: "🧊 Pods (Группы контейнеров)", en: "🧊 Pods (Container Groups)" },
+            kube: { ru: "☸️ Интеграция Kube & Systemd", en: "☸️ Kube & Systemd Integration" },
+            volumes: { ru: "💾 Тома (Volumes)", en: "💾 Volumes" },
+            network: { ru: "🌐 Сети", en: "🌐 Networks" },
+            advanced: { ru: "🔧 Продвинутые команды", en: "🔧 Advanced Commands" },
+            schemas: { ru: "📊 Визуальные схемы", en: "📊 Visual Diagrams" }
+        };
+
+        // БАЗА КОМАНД PODMAN
+        const commands = [
+            // ========== КОНТЕЙНЕРЫ ==========
+            { category: "containers", title: "Запуск контейнера", title_en: "Run container", command: "podman run -d -p 8080:80 --name web nginx", description: "Запуск контейнера в фоне. Порты привязываются от пользователя (Rootless)", description_en: "Run in background. Rootless port mapping (>1024 typically)." },
+            { category: "containers", title: "Список контейнеров", title_en: "List containers", command: "podman ps -a", description: "Показать все контейнеры (и остановленные)", description_en: "List all containers (including stopped)" },
+            { category: "containers", title: "Остановить и удалить", title_en: "Stop & Remove", command: "podman rm -f web", description: "Принудительно остановить и удалить контейнер", description_en: "Force stop and remove a container" },
+            { category: "containers", title: "Подключение (Exec)", title_en: "Exec into container", command: "podman exec -it web bash", description: "Интерактивная оболочка внутри контейнера", description_en: "Open interactive shell inside container" },
+            { category: "containers", title: "Очистка (Prune)", title_en: "Prune containers", command: "podman container prune", description: "Удалить все остановленные контейнеры", description_en: "Remove all stopped containers" },
+
+            // ========== ОБРАЗЫ ==========
+            { category: "images", title: "Список образов", title_en: "List images", command: "podman images", description: "Показать скачанные локально образы", description_en: "Show locally downloaded images" },
+            { category: "images", title: "Поиск образа", title_en: "Search image", command: "podman search nginx", description: "Поиск образа в настроенных реестрах (DockerHub, Quay)", description_en: "Search across multiple configured registries (DockerHub, Quay)" },
+            { category: "images", title: "Сборка образа", title_en: "Build image", command: "podman build -t myapp:1.0 .", description: "Сборка образа (под капотом используется Buildah)", description_en: "Build image (uses Buildah under the hood)" },
+            { category: "images", title: "Удаление образа", title_en: "Remove image", command: "podman rmi myapp:1.0", description: "Удалить локальный образ", description_en: "Remove local image" },
+
+            // ========== PODS ==========
+            { category: "pods", title: "Создать пустой Pod", title_en: "Create empty Pod", command: "podman pod create --name my-pod -p 8080:80", description: "Создать Pod (группу) с общим пробросом портов", description_en: "Create a Pod with shared port mapping" },
+            { category: "pods", title: "Запуск в Pod'е", title_en: "Run inside Pod", command: "podman run -d --pod my-pod --name web nginx", description: "Запустить контейнер внутри существующего Pod'а", description_en: "Run a container inside an existing Pod" },
+            { category: "pods", title: "Список Pod'ов", title_en: "List Pods", command: "podman pod ps", description: "Посмотреть статус всех Pod'ов", description_en: "View status of all Pods" },
+            { category: "pods", title: "Управление Pod'ом", title_en: "Manage Pod", command: "podman pod stop my-pod\npodman pod start my-pod\npodman pod rm -f my-pod", description: "Остановка, запуск и принудительное удаление всего Pod'а сразу", description_en: "Stop, start, or force remove the entire Pod at once" },
+            { category: "pods", title: "Статистика Pod'а", title_en: "Pod stats", command: "podman pod top my-pod", description: "Показать процессы, работающие во всех контейнерах Pod'а", description_en: "Show processes running in all containers of a Pod" },
+
+            // ========== KUBE & SYSTEMD ==========
+            { category: "kube", title: "Сгенерировать Systemd", title_en: "Generate Systemd", command: "podman generate systemd --new --name my-pod > ~/.config/systemd/user/my-pod.service", description: "Создать unit-файл для автозапуска при загрузке сервера", description_en: "Create a systemd unit file for auto-start on boot" },
+            { category: "kube", title: "Включить автозапуск (Systemd)", title_en: "Enable auto-start", command: "systemctl --user enable --now my-pod.service", description: "Включить и запустить rootless сервис", description_en: "Enable and start the rootless systemd service" },
+            { category: "kube", title: "Сгенерировать YAML (Kube)", title_en: "Generate Kube YAML", command: "podman generate kube my-pod > deployment.yaml", description: "Экспортировать Podman Pod в Kubernetes YAML манифест", description_en: "Export a Podman Pod to a standard Kubernetes YAML manifest" },
+            { category: "kube", title: "Запустить из YAML (Play)", title_en: "Play Kube YAML", command: "podman play kube deployment.yaml", description: "Создать и запустить Podman контейнеры прямо из Kubernetes YAML!", description_en: "Create and start Pods locally directly from Kubernetes YAML!" },
+
+            // ========== VOLUMES & NETWORK ==========
+            { category: "volumes", title: "Создать том", title_en: "Create volume", command: "podman volume create my-vol", description: "Rootless тома хранятся в домашней директории пользователя", description_en: "Rootless volumes are stored in the user's home directory" },
+            { category: "volumes", title: "Подключить папку", title_en: "Bind mount", command: "podman run -v ./data:/app/data:Z nginx", description: "Флаг :Z необходим в системах с SELinux (Fedora/RHEL) для доступа", description_en: "The :Z flag is crucial on SELinux systems (Fedora/RHEL) for permissions" },
+            { category: "network", title: "Создать сеть", title_en: "Create network", command: "podman network create my-net", description: "Создать изолированную сеть (под капотом Netavark)", description_en: "Create isolated network (uses Netavark under the hood)" },
+
+            // ========== ПРЕДВИНУТЫЕ ==========
+            { category: "advanced", title: "Замена Docker (Alias)", title_en: "Docker Alias", command: 'echo "alias docker=podman" >> ~/.bashrc\nsource ~/.bashrc', description: "Использовать Podman вместо Docker бесшовно", description_en: "Use Podman transparently instead of Docker" },
+            { category: "advanced", title: "Podman Machine (Mac/Win)", title_en: "Podman Machine", command: "podman machine init\npodman machine start", description: "Запуск легковесной ВМ для работы Podman на macOS и Windows", description_en: "Start a lightweight VM to run Podman on macOS and Windows" },
+            { category: "advanced", title: "Полная очистка", title_en: "System reset", command: "podman system prune -a --volumes", description: "Удалить все неиспользуемые объекты", description_en: "Remove all unused containers, images, volumes" },
+            { category: "advanced", title: "Инфо о системе", title_en: "System info", command: "podman info", description: "Просмотр путей rootless хранилищ, конфигурации сети и реестров", description_en: "View rootless storage paths, network config, and registries" }
+        ];
+
+        const schemas = [
+            { 
+                title: " Daemonless архитектура (Podman vs Docker)", 
+                title_en: " Daemonless Architecture (Podman vs Docker)", 
+                diagram: `
+DOCKER (Требует root-демона):
+CLI ──▶ Docker Daemon (root) ──▶ containerd ──▶ Контейнеры
+
+PODMAN (Без демона, напрямую из под пользователя):
+CLI ──▶ conmon ──▶ crun/runc ──▶ Контейнер 1
+ │
+ └────▶ conmon ──▶ crun/runc ──▶ Контейнер 2
+ 
+📌 Нет единой точки отказа. Контейнеры - дочерние процессы пользователя.`,
+                diagram_en: `
+DOCKER (Requires root daemon):
+CLI ──▶ Docker Daemon (root) ──▶ containerd ──▶ Containers
+
+PODMAN (Daemonless, forks directly from user):
+CLI ──▶ conmon ──▶ crun/runc ──▶ Container 1
+ │
+ └────▶ conmon ──▶ crun/runc ──▶ Container 2
+
+📌 No single point of failure. Containers are child processes of the user.`
+            },
+            { 
+                title: "🧊 Что такое Pod (Группа контейнеров)?", 
+                title_en: "🧊 What is a Pod?", 
+                diagram: `
+┌────────────────── Pod ──────────────────┐
+│  ┌───────────────────────────────────┐  │
+│  │ Infra Container (pause)           │  │
+│  │ Держатель портов и сети (cgroups) │  │
+│  └───────────────────────────────────┘  │
+│          ▲                   ▲          │
+│          │ localhost         │          │
+│          ▼                   ▼          │
+│  ┌───────────────┐   ┌───────────────┐  │
+│  │ App Container │   │ DB Container  │  │
+│  │ (например, WP)│   │ (например, DB)│  │
+│  └───────────────┘   └───────────────┘  │
+└─────────────────────────────────────────┘
+📌 Контейнеры внутри Pod'а общаются 
+   по 'localhost'`,
+                diagram_en: `
+┌────────────────── Pod ──────────────────┐
+│  ┌───────────────────────────────────┐  │
+│  │ Infra Container (pause)           │  │
+│  │ Holds ports & network namespaces  │  │
+│  └───────────────────────────────────┘  │
+│          ▲                   ▲          │
+│          │ localhost         │          │
+│          ▼                   ▼          │
+│  ┌───────────────┐   ┌───────────────┐  │
+│  │ App Container │   │ Sidecar/DB    │  │
+│  │ (e.g., Web)   │   │ (e.g., Cache) │  │
+│  └───────────────┘   └───────────────┘  │
+└─────────────────────────────────────────┘
+📌 Containers inside a Pod talk via 'localhost'`
+            },
+            { 
+                title: "☸️ Полный цикл интеграции (От локалки до Prod)", 
+                title_en: "☸️ The Podman Workflow (Local to Prod)", 
+                diagram: `
+ 1️⃣ Локальная разработка:
+    podman run / podman pod create
+          │
+          ▼
+ 2️⃣ Экспорт манифеста (Магия Podman):
+    podman generate kube > app.yaml
+          │
+          ├─────────────────────┐
+          ▼                     ▼
+3A️⃣ Локальный запуск  3B️⃣ Деплой в Kubernetes
+ (без кластера!)       (настоящий кластер)
+ podman play kube      kubectl apply -f app.yaml`,
+                diagram_en: `
+ 1️⃣ Local Development:
+    podman run / podman pod create
+          │
+          ▼
+ 2️⃣ Export Manifest (Podman Magic):
+    podman generate kube > app.yaml
+          │
+          ├─────────────────────┐
+          ▼                     ▼
+3A️⃣ Local Deployment   3B️⃣ Prod Kubernetes
+ (No cluster needed!)   (Actual cluster)
+ podman play kube       kubectl apply -f app.yaml`
+            }
+        ];
+
+        let currentCategory = "all";
+        let searchQuery = "";
+        let favorites = JSON.parse(localStorage.getItem("podmanFavorites") || "[]");
+        let isDarkTheme = true;
+
+        function applyLanguage() {
+            const t = i18n[currentLang];
+            
+            document.getElementById("mainDesc").textContent = t.mainDesc;
+            document.getElementById("searchInput").placeholder = t.searchPlaceholder;
+            document.getElementById("searchBtn").textContent = t.searchBtn;
+            document.getElementById("exportJsonBtn").textContent = t.exportJson;
+            document.getElementById("exportMarkdownBtn").textContent = t.exportMd;
+            document.getElementById("clearFavoritesBtn").textContent = t.clearFav;
+            
+            document.getElementById("tab-all").innerHTML = `${t.tabAll} (${commands.length})`;
+            document.getElementById("tab-containers").innerHTML = t.tabContainers;
+            document.getElementById("tab-images").innerHTML = t.tabImages;
+            document.getElementById("tab-pods").innerHTML = `${t.tabPods} <span class="new-badge">Killer Feature</span>`;
+            document.getElementById("tab-kube").innerHTML = t.tabKube;
+            document.getElementById("tab-volumes").innerHTML = t.tabVolumes;
+            document.getElementById("tab-network").innerHTML = t.tabNetwork;
+            document.getElementById("tab-advanced").innerHTML = t.tabAdvanced;
+            document.getElementById("tab-schemas").innerHTML = t.tabSchemas;
+            
+            document.getElementById("shortcutsHint").textContent = t.shortcutsHint;
+            document.getElementById("footerText").textContent = t.footerText;
+
+            const langBtn = document.getElementById("langToggle");
+            langBtn.textContent = currentLang === "ru" ? "🇷🇺 RU" : "🇬🇧 EN";
+
+            renderContent();
+            updateStatsBadge();
+        }
+
+        function toggleLanguage() {
+            currentLang = currentLang === "ru" ? "en" : "ru";
+            localStorage.setItem("podmanLang", currentLang);
+            applyLanguage();
+        }
+
+        function saveFavorites() {
+            localStorage.setItem("podmanFavorites", JSON.stringify(favorites));
+            updateFavoritesUI();
+            updateStatsBadge();
+        }
+
+        function toggleFavorite(ruTitle) {
+            const commandExists = commands.some(cmd => cmd.title === ruTitle);
+            if (!commandExists) return;
+        
+            const index = favorites.indexOf(ruTitle);
+            if (index === -1) {
+                favorites.push(ruTitle);
+            } else {
+                favorites.splice(index, 1);
+            }
+            saveFavorites();
+            renderContent();
+            updateStatsBadge();
+        }
+
+        function updateFavoritesUI() {
+            const container = document.getElementById("favoritesList");
+            if (!container) return;
+            const t = i18n[currentLang];
+            
+            container.innerHTML = `<div style="color:#a78bfa; padding:5px; font-weight:bold;">${t.favTitle}</div>`;
+            favorites.forEach(fav => {
+                const cmd = commands.find(c => c.title === fav);
+                if (!cmd) return;
+                
+                const displayTitle = currentLang === 'en' ? cmd.title_en : cmd.title;
+                const div = document.createElement("div");
+                div.textContent = displayTitle.length > 30 ? displayTitle.substring(0, 27) + "..." : displayTitle;
+                div.title = displayTitle;
+                
+                div.onclick = () => {
+                    document.getElementById("searchInput").value = displayTitle;
+                    searchQuery = displayTitle;
+                    currentCategory = "all";
+                    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+                    document.querySelector(".tab-btn[data-cat='all']").classList.add("active");
+                    renderContent();
+                };
+                container.appendChild(div);
+            });
+            if (favorites.length === 0) {
+                const empty = document.createElement("div");
+                empty.textContent = t.favEmpty;
+                empty.style.color = "#64748b";
+                empty.style.padding = "5px";
+                container.appendChild(empty);
+            }
+        }
+
+        function updateStatsBadge() {
+            const container = document.getElementById("statsBadge");
+            const t = i18n[currentLang];
+            if (container) {
+                container.innerHTML = `
+                    <span class="stat-item">${t.statTotal} ${commands.length}</span>
+                    <span class="stat-item">${t.statFavs} ${favorites.length}</span>
+                    <span class="stat-item">Rootless & Daemonless</span>
+                    <span class="stat-item badge-gold">${t.statBadge}</span>
+                `;
+            }
+        }
+
+        function escapeRegex(str) { return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+        function escapeHtml(str) {
+            if (!str) return "";
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === "&") return "&amp;"; if (m === "<") return "&lt;"; if (m === ">") return "&gt;"; return m;
+            });
+        }
+        function highlightText(text, query) {
+            if (!query || query.trim() === "") return escapeHtml(text);
+            try { return escapeHtml(text).replace(new RegExp(`(${escapeRegex(query)})`, 'gi'), '<span class="highlight">$1</span>'); } 
+            catch(e) { return escapeHtml(text); }
+        }
+
+        function filterCommands() {
+            return commands.filter(cmd => {
+                const matchCat = currentCategory === "all" || cmd.category === currentCategory;
+                const matchSearch = searchQuery === "" || 
+                    cmd.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    cmd.title_en.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    cmd.command.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    cmd.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    cmd.description_en.toLowerCase().includes(searchQuery.toLowerCase());
+                return matchCat && matchSearch;
+            });
+        }
+
+        function copyToClipboard(text, btn) {
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = btn.textContent;
+                btn.textContent = "✓";
+                setTimeout(() => { btn.textContent = originalText; }, 1500);
+            });
+        }
+
+        function exportToJSON() {
+            const data = { exportedAt: new Date().toISOString(), favorites, totalCommands: commands.length, allCommands: commands };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `podman-guide-${new Date().toISOString().slice(0,19)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function exportToMarkdown() {
+            const t = i18n[currentLang];
+            let md = `# Podman Navigator\n\n*Exported: ${new Date().toLocaleString()}*\n\n## ${t.favTitle} (${favorites.length})\n\n`;
+            favorites.forEach(fav => {
+                const cmd = commands.find(c => c.title === fav);
+                if (cmd) {
+                    const cTitle = currentLang === 'en' ? cmd.title_en : cmd.title;
+                    md += `- **${cTitle}**: \`${cmd.command}\`\n`;
+                }
+            });
+            md += `\n## 📋 ${t.tabAll} (${commands.length})\n\n`;
+            const categories = ["containers", "images", "pods", "kube", "volumes", "network", "advanced"];
+            
+            for (const cat of categories) {
+                md += `### ${categoryTitles[cat][currentLang]}\n\n`;
+                commands.filter(c => c.category === cat).forEach(cmd => {
+                    const cTitle = currentLang === 'en' ? cmd.title_en : cmd.title;
+                    const cDesc = currentLang === 'en' ? cmd.description_en : cmd.description;
+                    md += `- **${cTitle}**: \`${cmd.command}\`\n  - ${cDesc}\n`;
+                });
+                md += `\n`;
+            }
+            const blob = new Blob([md], { type: "text/markdown" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `podman-guide-${new Date().toISOString().slice(0,19)}.md`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function getIconForCategory(cat) {
+            const icons = { containers: "📦", images: "🖼️", pods: "🧊", kube: "☸️", volumes: "💾", network: "🌐", advanced: "🔧" };
+            return icons[cat] || "💡";
+        }
+
+        function renderContent() {
+            const container = document.getElementById("categoriesContainer");
+            if (!container) return;
+            const t = i18n[currentLang];
+
+            const filtered = filterCommands();
+            const filteredSchemas = schemas.filter(s => {
+                if (!searchQuery) return true;
+                const q = searchQuery.toLowerCase();
+                return s.title.toLowerCase().includes(q) || s.title_en.toLowerCase().includes(q) || 
+                       s.diagram.toLowerCase().includes(q) || s.diagram_en.toLowerCase().includes(q);
+            });
+
+            const searchStats = document.getElementById("searchStats");
+            if (searchStats) {
+                const totalMatches = currentCategory === "schemas" ? filteredSchemas.length : (currentCategory === "all" ? filtered.length + filteredSchemas.length : filtered.length);
+                if (searchQuery) searchStats.innerHTML = `${t.foundItems} ${totalMatches} ${t.itemsQuery} "${escapeHtml(searchQuery)}"`;
+                else searchStats.innerHTML = `${t.totalLabel} ${commands.length} | ${t.statFavs} ${favorites.length}`;
+            }
+
+            const categories = ["containers", "images", "pods", "kube", "volumes", "network", "advanced", "schemas"];
+            let html = "";
+            for (const cat of categories) {
+                if (currentCategory !== "all" && currentCategory !== cat) continue;
+                
+                let hasContent = false;
+                let catHtml = `<h2 style="margin: 25px 0 15px 0; color:#a78bfa;">${categoryTitles[cat][currentLang]}</h2>`;
+                catHtml += `<div class="cmd-grid">`;
+
+                if (cat === "schemas") {
+                    if (filteredSchemas.length > 0) {
+                        hasContent = true;
+                        filteredSchemas.forEach(schema => {
+                            const sTitle = currentLang === 'en' ? schema.title_en : schema.title;
+                            const sDiag = currentLang === 'en' ? schema.diagram_en : schema.diagram;
+                            catHtml += `<div class="cmd-card">
+                                <div class="cmd-title"><span class="icon">📐</span><h3>${highlightText(sTitle, searchQuery)}</h3></div>
+                                <div class="schema-diagram">${highlightText(sDiag, searchQuery)}</div>
+                            </div>`;
+                        });
+                    }
+                } else {
+                    const catCommands = filtered.filter(c => c.category === cat);
+                    if (catCommands.length > 0) {
+                        hasContent = true;
+                        catCommands.forEach(cmd => {
+                            const isFav = favorites.includes(cmd.title);
+                            const cTitle = currentLang === 'en' ? cmd.title_en : cmd.title;
+                            const cDesc = currentLang === 'en' ? cmd.description_en : cmd.description;
+                            const safeCommand = escapeHtml(cmd.command).replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n").replace(/\r/g, "");    
+                            const safeTitleForFav = escapeHtml(cmd.title).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+                            const favText = isFav ? t.addedFav : t.addFav;
+
+                            catHtml += `<div class="cmd-card">
+                                <div class="cmd-title">
+                                    <span class="icon">${getIconForCategory(cmd.category)}</span>
+                                    <h3>${highlightText(cTitle, searchQuery)}</h3>
+                                    <button class="copy-btn" onclick="copyToClipboard('${safeCommand}', this)">📋</button>
+                                </div>
+                                <div class="cmd-code">${highlightText(cmd.command, searchQuery)}</div>
+                                <div class="cmd-desc">📖 ${highlightText(cDesc, searchQuery)}</div>
+                                <div style="margin-top: 10px;">
+                                    <span class="badge" onclick="toggleFavorite('${safeTitleForFav}')" style="background:${isFav ? '#d946ef' : '#334155'}">
+                                        ${favText}
+                                    </span>
+                                </div>
+                            </div>`;
+                        });
+                    }
+                }
+                
+                catHtml += `</div>`;
+
+                if (!hasContent && currentCategory === cat) {
+                    hasContent = true;
+                    catHtml = `<h2 style="margin: 25px 0 15px 0; color:#a78bfa;">${categoryTitles[cat][currentLang]}</h2>
+                               <p style="color:#64748b;">${t.notFound} "${escapeHtml(searchQuery)}" 😔</p>`;
+                }
+
+                if (hasContent) html += `<div class="category" data-cat="${cat}" style="display:block">${catHtml}</div>`;
+            }
+            container.innerHTML = html;
+            updateFavoritesUI();
+        }
+
+        function toggleTheme() {
+            isDarkTheme = !isDarkTheme;
+            if (isDarkTheme) document.body.classList.remove("light-theme");
+            else document.body.classList.add("light-theme");
+            localStorage.setItem("podmanTheme", isDarkTheme ? "dark" : "light");
+        }
+
+        function cleanFavorites() {
+            const validTitles = commands.map(cmd => cmd.title);
+            favorites = favorites.filter(fav => validTitles.includes(fav));
+            saveFavorites();
+        }
+
+        function init() {
+            if (localStorage.getItem("podmanTheme") === "light") {
+                isDarkTheme = false;
+                document.body.classList.add("light-theme");
+            }
+            
+            cleanFavorites();
+            applyLanguage();
+            
+            document.querySelectorAll(".tab-btn").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+                    btn.classList.add("active");
+                    currentCategory = btn.dataset.cat;
+                    renderContent();
+                });
+            });
+            
+            const doSearch = () => { searchQuery = document.getElementById("searchInput").value; renderContent(); };
+            document.getElementById("searchBtn").addEventListener("click", doSearch);
+            document.getElementById("searchInput").addEventListener("keypress", (e) => { if (e.key === "Enter") doSearch(); });
+            
+            document.getElementById("exportJsonBtn").addEventListener("click", exportToJSON);
+            document.getElementById("exportMarkdownBtn").addEventListener("click", exportToMarkdown);
+            document.getElementById("clearFavoritesBtn").addEventListener("click", () => {
+                favorites = [];
+                saveFavorites();
+                document.getElementById("searchInput").value = "";
+                searchQuery = "";
+                currentCategory = "all";
+                document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+                document.querySelector(".tab-btn[data-cat='all']").classList.add("active");
+                renderContent();
+            });
+            
+            document.getElementById("themeToggle").addEventListener("click", toggleTheme);
+            document.getElementById("langToggle").addEventListener("click", toggleLanguage);
+            
+            document.addEventListener("keydown", (e) => {
+                if (e.key === '/' && document.activeElement.id !== "searchInput") { e.preventDefault(); document.getElementById("searchInput").focus(); }
+                if (e.key === 'F2') { e.preventDefault(); toggleTheme(); }
+                if (e.key === 'Escape') { e.preventDefault(); document.getElementById("searchInput").value = ""; searchQuery = ""; renderContent(); }
+            });
+        }
+        
+        init();
+    </script>
+</body>
+</html>
