@@ -478,7 +478,7 @@
                 tabAdvanced: "🔧 Продвинутые",
                 tabSchemas: "📊 Схемы",
                 shortcutsHint: "⌨️ / - поиск | F2 - тема | Esc - сброс",
-                footerText: "📘 Podman Navigator |⚓ Daemonless & Rootless | Pods ✅ | Kubernetes YAML ✅",
+                footerText: "📘 Podman Navigator |🐋 Daemonless & Rootless | Pods ✅ | Kubernetes YAML ✅",
                 favTitle: "⭐ Избранное",
                 favEmpty: "Нет избранного",
                 statTotal: "📦 Всего команд:",
@@ -578,8 +578,8 @@
 
         const schemas = [
             { 
-                title: "⚓ Daemonless архитектура (Podman vs Docker)", 
-                title_en: "⚓ Daemonless Architecture (Podman vs Docker)", 
+                title: "🐋 Daemonless архитектура (Podman vs Docker)", 
+                title_en: "🐋 Daemonless Architecture (Podman vs Docker)", 
                 diagram: `
 DOCKER (Требует root-демона):
 CLI ──▶ Docker Daemon (root) ──▶ containerd ──▶ Контейнеры
@@ -824,7 +824,7 @@ CLI ──▶ conmon ──▶ crun/runc ──▶ Container 1
 
         function exportToMarkdown() {
             const t = i18n[currentLang];
-            let md = `# ⚓ Podman Navigator\n\n*Exported: ${new Date().toLocaleString()}*\n\n## ${t.favTitle} (${favorites.length})\n\n`;
+            let md = `# 🐋 Podman Navigator\n\n*Exported: ${new Date().toLocaleString()}*\n\n## ${t.favTitle} (${favorites.length})\n\n`;
             favorites.forEach(fav => {
                 const cmd = commands.find(c => c.title === fav);
                 if (cmd) {
